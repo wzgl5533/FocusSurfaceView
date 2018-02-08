@@ -28,3 +28,4 @@ allprojects {
 ## 效果图
 
 ![wzgl_demo](https://github.com/wzgl5533/FocusSurfaceView/blob/master/screenshots/wzgl_demo.jpg)
+![](https://github.com/wzgl5533/FocusSurfaceView/blob/master/screenshots/wzgl_demo.jpg)
