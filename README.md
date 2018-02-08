@@ -18,14 +18,13 @@ allprojects {
 			maven { url 'https://jitpack.io' }
 		}
 	}
-  ```
+```
   Step 2. Add the dependency
-  ```
+```
   dependencies {
 	        compile 'com.github.wzgl5533:FocusSurfaceView:1.0.1'
 	}
-  ```
-  
- 
+```
+   
  ## 效果图
 ![wzgl_demo](https://github.com/wzgl5533/FocusSurfaceView/blob/master/screenshots/wzgl_demo.jpg)
