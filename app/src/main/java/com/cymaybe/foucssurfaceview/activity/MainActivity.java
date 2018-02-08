@@ -11,6 +11,7 @@ import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.OrientationEventListener;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -269,6 +270,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             pictureFragment.setArguments(bundle);
                             pictureFragment.show(getFragmentManager(), null);
 
+                           Log.e("11111",cropBitmap.getWidth()+"----"+cropBitmap.getHeight());
                             focus = false;
                             mCamera.startPreview();
                         }

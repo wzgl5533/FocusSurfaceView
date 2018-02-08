@@ -1231,19 +1231,14 @@ public class FocusSurfaceView extends SurfaceView {
     public RectF getFrameRect() {
         return mFrameRect;
     }
-
     /**
-     * 获取照片
-     *
-     * @param data 从camera返回的数据
-     * @return 裁剪后的bitmap
-     */
-    public Bitmap getPicture(byte[] data) {
-        //原始照片
-        Bitmap originBitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+     * 利用正确视角（和预览视角相同）的裁剪图片
+     * **/
+    public Bitmap getCropPicture(Bitmap bitmap){
+
         //原始照片的宽高
-        float picWidth = originBitmap.getWidth();
-        float picHeight = originBitmap.getHeight();
+        float picWidth = bitmap.getWidth();
+        float picHeight = bitmap.getHeight();
 
         //预览界面的宽高
         float preWidth = getWidth();
@@ -1265,7 +1260,7 @@ public class FocusSurfaceView extends SurfaceView {
         int cropWidth = (int) (frameWidth * preRW);
         int cropHeight = (int) (frameHeight * preRH);
 
-        Bitmap cropBitmap = Bitmap.createBitmap(originBitmap, cropLeft, cropTop, cropWidth, cropHeight);
+        Bitmap cropBitmap = Bitmap.createBitmap(bitmap, cropLeft, cropTop, cropWidth, cropHeight);
 
         if (mCropMode == CropMode.CIRCLE) {
             cropBitmap = getCircularBitmap(cropBitmap);
