@@ -206,7 +206,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
                 break;
             case R.id.change_c:
-
+                previewSFV.setTopTipText("monou");
                 break;
             case R.id.three_four_bt:
                 previewSFV.setCropMode(FocusSurfaceView.CropMode.RATIO_3_4);

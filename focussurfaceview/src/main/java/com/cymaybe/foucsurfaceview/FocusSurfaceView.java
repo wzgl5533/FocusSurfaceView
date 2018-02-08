@@ -83,9 +83,9 @@ public class FocusSurfaceView extends SurfaceView {
     private float mGuideStrokeWeight = 2.0f;
     private int mOverlayColor;
     private int mFrameColor;
-    private int mFrameTipsColor;//边框外提示语颜色
-    private int mTipsTextSize;//文字大小
-    private String mTipsText;//文字
+    private int mTopTipColor;//边框外提示语颜色
+    private int mTopTipTextSize;//文字大小
+    private String mTopTipText;//文字
     private int mHandleColor;
     private int mGuideColor;
     private Drawable mFrameBackground;
@@ -107,7 +107,7 @@ public class FocusSurfaceView extends SurfaceView {
 
         float density = getDensity();
         mHandleSize = (int) (density * HANDLE_SIZE_IN_DP);
-        mTipsTextSize = (int)(density * TIPS_TEXT_SIZE_IN_DP);
+        mTopTipTextSize = (int)(density * TIPS_TEXT_SIZE_IN_DP);
         mMinFrameSize = density * MIN_FRAME_SIZE_IN_DP;
         mFrameStrokeWeight = density * FRAME_STROKE_WEIGHT_IN_DP;
         mGuideStrokeWeight = density * GUIDE_STROKE_WEIGHT_IN_DP;
@@ -117,12 +117,11 @@ public class FocusSurfaceView extends SurfaceView {
         mPaintTips = new Paint();
 
         mFrameColor = WHITE;
-        mFrameTipsColor = WHITE;
-        mTipsTextSize = 36;
+        mTopTipColor = WHITE;
         mOverlayColor = TRANSLUCENT_BLACK;
         mHandleColor = WHITE;
         mGuideColor = TRANSLUCENT_WHITE;
-        mTipsText = "合肥晌玥科技";
+        mTopTipText = "合肥晌玥科技";
 
         handleStyleable(context, attrs, defStyle, density);
     }
@@ -141,9 +140,9 @@ public class FocusSurfaceView extends SurfaceView {
             float customRatioY = ta.getFloat(R.styleable.FocusSurfaceView_focus_frame_ratio_y, 1.0f);
             mCustomRatio = new PointF(customRatioX, customRatioY);
             mOverlayColor = ta.getColor(R.styleable.FocusSurfaceView_focus_overlay_color, TRANSLUCENT_BLACK);
-            mFrameTipsColor = ta.getColor(R.styleable.FocusSurfaceView_focus_tips_color,WHITE);
-            mTipsTextSize = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_tips_text_size,(int) (TIPS_TEXT_SIZE_IN_DP * mDensity));
-            mTipsText = ta.getString(R.styleable.FocusSurfaceView_focus_tips_text);
+            mTopTipColor = ta.getColor(R.styleable.FocusSurfaceView_focus_tips_color,WHITE);
+            mTopTipTextSize = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_tips_text_size,(int) (TIPS_TEXT_SIZE_IN_DP * mDensity));
+            mTopTipText = ta.getString(R.styleable.FocusSurfaceView_focus_tips_text);
             mFrameColor = ta.getColor(R.styleable.FocusSurfaceView_focus_frame_color, WHITE);
             mHandleColor = ta.getColor(R.styleable.FocusSurfaceView_focus_handle_color, WHITE);
             mGuideColor = ta.getColor(R.styleable.FocusSurfaceView_focus_guide_color, TRANSLUCENT_WHITE);
@@ -337,16 +336,16 @@ public class FocusSurfaceView extends SurfaceView {
         mPaintTips.setAntiAlias(true);
         mPaintTips.setFilterBitmap(true);
         mPaintTips.setStyle(Paint.Style.STROKE);
-        mPaintTips.setColor(mFrameTipsColor);
-        mPaintTips.setTextSize(mTipsTextSize);
+        mPaintTips.setColor(mTopTipColor);
+        mPaintTips.setTextSize(mTopTipTextSize);
         float x = mFrameRect.centerX()-measureText()/2;
         float y = mFrameRect.top -10;
-        canvas.drawText(mTipsText,x,y,mPaintTips);
+        canvas.drawText(mTopTipText,x,y,mPaintTips);
     }
 
     /**测量文本宽度**/
     private float measureText() {
-       float mStringWidth = mPaintTips.measureText(mTipsText);
+       float mStringWidth = mPaintTips.measureText(mTopTipText);
         return mStringWidth;
     }
 
@@ -1300,5 +1299,28 @@ public class FocusSurfaceView extends SurfaceView {
     private int dip2px(Context context, float dipValue) {
         final float scale = context.getResources().getDisplayMetrics().density;
         return (int) (dipValue * scale + 0.5f);
+    }
+
+    /**
+     * 设置顶部文字内容
+     * **/
+    public void setTopTipText(String text){
+
+        mTopTipText = text;
+        invalidate();
+    }
+    /**
+     * 设置顶部文字颜色
+     * **/
+    public void setTopTipTextColor(int color){
+        mTopTipColor = color;
+        invalidate();
+    }
+    /**
+     * 设置顶部文字大小
+     * **/
+    public void setTopTipTextSize(int size){
+        mTopTipTextSize = size;
+        invalidate();
     }
 }
