@@ -87,7 +87,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mCircleSquareBT = (Button) findViewById(R.id.circle_square_bt);
         mCustomBT = (Button) findViewById(R.id.custom_bt);
 
-        previewSFV.setTopTipText("wzgl5533");
         previewSFV.setBottomTipText("wzgl5533");
     }
 

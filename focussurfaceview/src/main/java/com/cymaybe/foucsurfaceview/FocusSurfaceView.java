@@ -157,11 +157,17 @@ public class FocusSurfaceView extends SurfaceView {
             mTopTipColor = ta.getColor(R.styleable.FocusSurfaceView_focus_top_tips_color,WHITE);
             mTopTipTextSize = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_top_tips_text_size,(int) (TIPS_TEXT_SIZE_IN_DP * mDensity));
             mTopTipText = ta.getString(R.styleable.FocusSurfaceView_focus_top_tips_text);
+            if (mTopTipText == null || mTopTipText.length() == 0){
+                mTopTipText = "";
+            }
             mTopTipMargin = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_top_tips_text_margin, (int) (TIP_MARGIN_DEFAULT_SIZE_IN_DP * mDensity));
             //底部文字
             mBottomTipColor = ta.getColor(R.styleable.FocusSurfaceView_focus_bottom_tips_color,WHITE);
             mBottomTipTextSize = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_bottom_tips_text_size,(int) (TIPS_TEXT_SIZE_IN_DP * mDensity));
             mBottomTipText = ta.getString(R.styleable.FocusSurfaceView_focus_bottom_tips_text);
+            if (mBottomTipText == null || mBottomTipText.length() == 0){
+                mBottomTipText = "";
+            }
             mBottomTipMargin = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_bottom_tips_text_margin, (int) (TIP_MARGIN_DEFAULT_SIZE_IN_DP * mDensity));
 
             mFrameColor = ta.getColor(R.styleable.FocusSurfaceView_focus_frame_color, WHITE);
