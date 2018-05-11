@@ -88,6 +88,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mCustomBT = (Button) findViewById(R.id.custom_bt);
 
         previewSFV.setTopTipText("wzgl5533");
+        previewSFV.setBottomTipText("wzgl5533");
     }
 
     private void setListener() {

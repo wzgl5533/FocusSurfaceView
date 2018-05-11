@@ -15,9 +15,14 @@
         </attr>
         <attr name="focus_overlay_color" format="reference|color"/>
         <attr name="focus_frame_color" format="reference|color"/>
-        <attr name="focus_tips_color" format="reference|color"/>
-        <attr name="focus_tips_text_size" format="dimension"/>
-        <attr name="focus_tips_text" format="string"/>
+        <attr name="focus_top_tips_color" format="reference|color"/>
+        <attr name="focus_top_tips_text_size" format="dimension"/>
+        <attr name="focus_top_tips_text" format="string"/>
+        <attr name="focus_top_tips_text_margin" format="dimension"/>
+        <attr name="focus_bottom_tips_color" format="reference|color"/>
+        <attr name="focus_bottom_tips_text_size" format="dimension"/>
+        <attr name="focus_bottom_tips_text" format="string"/>
+        <attr name="focus_bottom_tips_text_margin" format="dimension"/>
         <attr name="focus_handle_color" format="reference|color"/>
         <attr name="focus_guide_color" format="reference|color"/>
         <attr name="focus_guide_show_mode">

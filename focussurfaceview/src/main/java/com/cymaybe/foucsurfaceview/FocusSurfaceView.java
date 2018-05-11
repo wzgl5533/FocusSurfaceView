@@ -3,7 +3,6 @@ package com.cymaybe.foucsurfaceview;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -40,6 +39,7 @@ public class FocusSurfaceView extends SurfaceView {
     private static final int GUIDE_STROKE_WEIGHT_IN_DP = 1;
     private static final float DEFAULT_INITIAL_FRAME_SCALE = 0.75f;
     private static final int DEFAULT_ANIMATION_DURATION_MILLIS = 100;
+    private static final int TIP_MARGIN_DEFAULT_SIZE_IN_DP = 10;
 
     private static final int TRANSPARENT = 0x00000000;
     private static final int TRANSLUCENT_WHITE = 0xBBFFFFFF;
@@ -83,9 +83,17 @@ public class FocusSurfaceView extends SurfaceView {
     private float mGuideStrokeWeight = 2.0f;
     private int mOverlayColor;
     private int mFrameColor;
-    private int mTopTipColor;//边框外提示语颜色
+
+    private int mTopTipColor;//边框外Top提示语颜色
     private int mTopTipTextSize;//文字大小
     private String mTopTipText;//文字
+    private int mTopTipMargin;//边距
+
+    private int mBottomTipColor;//边框外Bottom提示语颜色
+    private int mBottomTipTextSize;//文字大小
+    private String mBottomTipText;//文字
+    private int mBottomTipMargin;//边距
+
     private int mHandleColor;
     private int mGuideColor;
     private Drawable mFrameBackground;
@@ -108,6 +116,7 @@ public class FocusSurfaceView extends SurfaceView {
         float density = getDensity();
         mHandleSize = (int) (density * HANDLE_SIZE_IN_DP);
         mTopTipTextSize = (int)(density * TIPS_TEXT_SIZE_IN_DP);
+        mBottomTipTextSize = (int)(density * TIPS_TEXT_SIZE_IN_DP);
         mMinFrameSize = density * MIN_FRAME_SIZE_IN_DP;
         mFrameStrokeWeight = density * FRAME_STROKE_WEIGHT_IN_DP;
         mGuideStrokeWeight = density * GUIDE_STROKE_WEIGHT_IN_DP;
@@ -118,10 +127,14 @@ public class FocusSurfaceView extends SurfaceView {
 
         mFrameColor = WHITE;
         mTopTipColor = WHITE;
+        mBottomTipColor = WHITE;
         mOverlayColor = TRANSLUCENT_BLACK;
         mHandleColor = WHITE;
         mGuideColor = TRANSLUCENT_WHITE;
         mTopTipText = "合肥晌玥科技";
+        mBottomTipText = "合肥晌玥科技";
+        mTopTipMargin = (int) (TIP_MARGIN_DEFAULT_SIZE_IN_DP * density);
+        mBottomTipMargin = (int) (TIP_MARGIN_DEFAULT_SIZE_IN_DP * density);
 
         handleStyleable(context, attrs, defStyle, density);
     }
@@ -140,9 +153,17 @@ public class FocusSurfaceView extends SurfaceView {
             float customRatioY = ta.getFloat(R.styleable.FocusSurfaceView_focus_frame_ratio_y, 1.0f);
             mCustomRatio = new PointF(customRatioX, customRatioY);
             mOverlayColor = ta.getColor(R.styleable.FocusSurfaceView_focus_overlay_color, TRANSLUCENT_BLACK);
-            mTopTipColor = ta.getColor(R.styleable.FocusSurfaceView_focus_tips_color,WHITE);
-            mTopTipTextSize = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_tips_text_size,(int) (TIPS_TEXT_SIZE_IN_DP * mDensity));
-            mTopTipText = ta.getString(R.styleable.FocusSurfaceView_focus_tips_text);
+            //顶部文字
+            mTopTipColor = ta.getColor(R.styleable.FocusSurfaceView_focus_top_tips_color,WHITE);
+            mTopTipTextSize = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_top_tips_text_size,(int) (TIPS_TEXT_SIZE_IN_DP * mDensity));
+            mTopTipText = ta.getString(R.styleable.FocusSurfaceView_focus_top_tips_text);
+            mTopTipMargin = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_top_tips_text_margin, (int) (TIP_MARGIN_DEFAULT_SIZE_IN_DP * mDensity));
+            //底部文字
+            mBottomTipColor = ta.getColor(R.styleable.FocusSurfaceView_focus_bottom_tips_color,WHITE);
+            mBottomTipTextSize = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_bottom_tips_text_size,(int) (TIPS_TEXT_SIZE_IN_DP * mDensity));
+            mBottomTipText = ta.getString(R.styleable.FocusSurfaceView_focus_bottom_tips_text);
+            mBottomTipMargin = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_bottom_tips_text_margin, (int) (TIP_MARGIN_DEFAULT_SIZE_IN_DP * mDensity));
+
             mFrameColor = ta.getColor(R.styleable.FocusSurfaceView_focus_frame_color, WHITE);
             mHandleColor = ta.getColor(R.styleable.FocusSurfaceView_focus_handle_color, WHITE);
             mGuideColor = ta.getColor(R.styleable.FocusSurfaceView_focus_guide_color, TRANSLUCENT_WHITE);
@@ -246,6 +267,7 @@ public class FocusSurfaceView extends SurfaceView {
         if (mShowGuide) drawGuidelines(canvas);
         if (mShowHandle) drawHandles(canvas);
         drawTopTips(canvas);
+        drawBottomTips(canvas);
     }
 
     /**
@@ -338,14 +360,26 @@ public class FocusSurfaceView extends SurfaceView {
         mPaintTips.setStyle(Paint.Style.STROKE);
         mPaintTips.setColor(mTopTipColor);
         mPaintTips.setTextSize(mTopTipTextSize);
-        float x = mFrameRect.centerX()-measureText()/2;
-        float y = mFrameRect.top -10;
+        float x = mFrameRect.centerX()-measureText(mTopTipText)/2;
+        float y = mFrameRect.top -mTopTipMargin;
         canvas.drawText(mTopTipText,x,y,mPaintTips);
     }
 
+    /**绘制底部提示语**/
+    private void drawBottomTips(Canvas canvas){
+        mPaintTips.setAntiAlias(true);
+        mPaintTips.setFilterBitmap(true);
+        mPaintTips.setStyle(Paint.Style.STROKE);
+        mPaintTips.setColor(mBottomTipColor);
+        mPaintTips.setTextSize(mBottomTipTextSize);
+        float x = mFrameRect.centerX()-measureText(mBottomTipText)/2;
+        float y = mFrameRect.bottom + mBottomTipMargin;
+        canvas.drawText(mBottomTipText,x,y,mPaintTips);
+    }
+
     /**测量文本宽度**/
-    private float measureText() {
-       float mStringWidth = mPaintTips.measureText(mTopTipText);
+    private float measureText(String text) {
+       float mStringWidth = mPaintTips.measureText(text);
         return mStringWidth;
     }
 
@@ -1302,6 +1336,14 @@ public class FocusSurfaceView extends SurfaceView {
     public void setTopTipText(String text){
 
         mTopTipText = text;
+        invalidate();
+    }
+    /**
+     * 设置底部文字内容
+     * **/
+    public void setBottomTipText(String text){
+
+        mBottomTipText = text;
         invalidate();
     }
     /**
