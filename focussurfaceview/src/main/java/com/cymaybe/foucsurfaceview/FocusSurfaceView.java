@@ -1366,4 +1366,15 @@ public class FocusSurfaceView extends SurfaceView {
         mTopTipTextSize = size;
         invalidate();
     }
+
+    /**设置裁剪框大小**/
+    public void setCropWidth(int width){
+        mCropWidth = width;
+        invalidate();
+    }
+    /**设置裁剪框大小**/
+    public void setCropHeight(int height){
+        mCropHeight = height;
+        invalidate();
+    }
 }
