@@ -1,5 +1,5 @@
 apply plugin: 'com.android.application'
-
+apply plugin: 'com.github.dcendents.android-maven'
 android {
     compileSdkVersion 26
     buildToolsVersion "26.0.2"
@@ -33,4 +33,36 @@ dependencies {
     compile 'io.reactivex.rxjava2:rxjava:2.0.5'
     //工具包
     compile 'com.blankj:utilcode:1.9.1'
+}
+
+//-----------------以下主要是开放源码及文档----------------------------
+
+//// 指定编码
+//tasks.withType(JavaCompile) {
+//    options.encoding = "UTF-8"
+//}
+
+// 打包源码
+task sourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    classifier = 'sources'
+}
+
+//制作文档
+//task javadoc(type: Javadoc) {
+//    failOnError  false
+//    source = android.sourceSets.main.java.sourceFiles
+//    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+//    classpath += configurations.compile
+//}
+
+//// 制作文档(Javadoc)
+//task javadocJar(type: Jar, dependsOn: javadoc) {
+//    classifier = 'javadoc'
+//    from javadoc.destinationDir
+//}
+
+artifacts {
+    archives sourcesJar
+//    archives javadocJar
 }
