@@ -1377,4 +1377,11 @@ public class FocusSurfaceView extends SurfaceView {
         mCropHeight = height;
         invalidate();
     }
+
+    /**
+     * 初始化时设置裁剪框相对中间位置平移位置
+     **/
+    public void moveFrameRelateCenterPosition(float x, float y) {
+        moveFrame(x, y);
+    }
 }
