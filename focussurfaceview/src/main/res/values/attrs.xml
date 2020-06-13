@@ -25,6 +25,7 @@
         <attr name="focus_bottom_tips_text_margin" format="dimension"/>
         <attr name="focus_handle_color" format="reference|color"/>
         <attr name="focus_guide_color" format="reference|color"/>
+        <attr name="focus_top_move_distance" format="dimension"/>
         <attr name="focus_guide_show_mode">
             <enum name="show_always" value="1"/>
             <enum name="show_on_touch" value="2"/>

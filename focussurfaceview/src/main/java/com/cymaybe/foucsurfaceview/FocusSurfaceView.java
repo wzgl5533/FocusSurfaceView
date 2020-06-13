@@ -45,7 +45,7 @@ public class FocusSurfaceView extends SurfaceView {
     private static final int TRANSLUCENT_WHITE = 0xBBFFFFFF;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int TRANSLUCENT_BLACK = 0xBB000000;
-
+    private final Interpolator DEFAULT_INTERPOLATOR = new DecelerateInterpolator();
     private boolean mIsInitialized = false;
     private float mBoundaryWidth = 0;//裁剪框可移动的范围的宽
     private float mBoundaryHeight = 0;//裁剪框可移动的范围的高
@@ -55,14 +55,11 @@ public class FocusSurfaceView extends SurfaceView {
     private int mCropHeight;
     private RectF mFrameRect;//裁剪框的rect
     private Paint mPaintTranslucent;
-
     private Paint mPaintTips;
-
     private float mLastX, mLastY;
     private boolean mIsRotating = false;
     private boolean mIsAnimating = false;
     private SimpleValueAnimator mAnimator = null;
-    private final Interpolator DEFAULT_INTERPOLATOR = new DecelerateInterpolator();
     private Interpolator mInterpolator = DEFAULT_INTERPOLATOR;
 
     private TouchArea mTouchArea = TouchArea.OUT_OF_BOUNDS;
@@ -93,6 +90,7 @@ public class FocusSurfaceView extends SurfaceView {
     private int mBottomTipTextSize;//文字大小
     private String mBottomTipText;//文字
     private int mBottomTipMargin;//边距
+    private int mTopMoveDistance = 0;//初始化向上移动距离
 
     private int mHandleColor;
     private int mGuideColor;
@@ -115,8 +113,8 @@ public class FocusSurfaceView extends SurfaceView {
 
         float density = getDensity();
         mHandleSize = (int) (density * HANDLE_SIZE_IN_DP);
-        mTopTipTextSize = (int)(density * TIPS_TEXT_SIZE_IN_DP);
-        mBottomTipTextSize = (int)(density * TIPS_TEXT_SIZE_IN_DP);
+        mTopTipTextSize = (int) (density * TIPS_TEXT_SIZE_IN_DP);
+        mBottomTipTextSize = (int) (density * TIPS_TEXT_SIZE_IN_DP);
         mMinFrameSize = density * MIN_FRAME_SIZE_IN_DP;
         mFrameStrokeWeight = density * FRAME_STROKE_WEIGHT_IN_DP;
         mGuideStrokeWeight = density * GUIDE_STROKE_WEIGHT_IN_DP;
@@ -139,6 +137,13 @@ public class FocusSurfaceView extends SurfaceView {
         handleStyleable(context, attrs, defStyle, density);
     }
 
+    private float getDensity() {
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay()
+                .getMetrics(displayMetrics);
+        return displayMetrics.density;
+    }
+
     private void handleStyleable(Context context, AttributeSet attrs, int defStyle, float mDensity) {
         TypedArray ta = context.getTheme().obtainStyledAttributes(attrs, R.styleable.FocusSurfaceView, defStyle, 0);
         mCropMode = CropMode.SQUARE;
@@ -154,18 +159,18 @@ public class FocusSurfaceView extends SurfaceView {
             mCustomRatio = new PointF(customRatioX, customRatioY);
             mOverlayColor = ta.getColor(R.styleable.FocusSurfaceView_focus_overlay_color, TRANSLUCENT_BLACK);
             //顶部文字
-            mTopTipColor = ta.getColor(R.styleable.FocusSurfaceView_focus_top_tips_color,WHITE);
-            mTopTipTextSize = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_top_tips_text_size,(int) (TIPS_TEXT_SIZE_IN_DP * mDensity));
+            mTopTipColor = ta.getColor(R.styleable.FocusSurfaceView_focus_top_tips_color, WHITE);
+            mTopTipTextSize = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_top_tips_text_size, (int) (TIPS_TEXT_SIZE_IN_DP * mDensity));
             mTopTipText = ta.getString(R.styleable.FocusSurfaceView_focus_top_tips_text);
-            if (mTopTipText == null || mTopTipText.length() == 0){
+            if (mTopTipText == null || mTopTipText.length() == 0) {
                 mTopTipText = "";
             }
             mTopTipMargin = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_top_tips_text_margin, (int) (TIP_MARGIN_DEFAULT_SIZE_IN_DP * mDensity));
             //底部文字
-            mBottomTipColor = ta.getColor(R.styleable.FocusSurfaceView_focus_bottom_tips_color,WHITE);
-            mBottomTipTextSize = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_bottom_tips_text_size,(int) (TIPS_TEXT_SIZE_IN_DP * mDensity));
+            mBottomTipColor = ta.getColor(R.styleable.FocusSurfaceView_focus_bottom_tips_color, WHITE);
+            mBottomTipTextSize = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_bottom_tips_text_size, (int) (TIPS_TEXT_SIZE_IN_DP * mDensity));
             mBottomTipText = ta.getString(R.styleable.FocusSurfaceView_focus_bottom_tips_text);
-            if (mBottomTipText == null || mBottomTipText.length() == 0){
+            if (mBottomTipText == null || mBottomTipText.length() == 0) {
                 mBottomTipText = "";
             }
             mBottomTipMargin = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_bottom_tips_text_margin, (int) (TIP_MARGIN_DEFAULT_SIZE_IN_DP * mDensity));
@@ -205,11 +210,63 @@ public class FocusSurfaceView extends SurfaceView {
             mIsHandleShadowEnabled = ta.getBoolean(R.styleable.FocusSurfaceView_focus_handle_shadow_enabled, true);
             mIsChangeEnabled = ta.getBoolean(R.styleable.FocusSurfaceView_focus_frame_can_change, false);
             mFrameBackground = ta.getDrawable(R.styleable.FocusSurfaceView_focus_frame_background);
+
+            mTopMoveDistance = ta.getDimensionPixelSize(R.styleable.FocusSurfaceView_focus_top_move_distance, 0);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             ta.recycle();
         }
+    }
+
+    /**
+     * 设置 guideline 的显示模式
+     * (SHOW_ALWAYS/NOT_SHOW/SHOW_ON_TOUCH)
+     *
+     * @param mode guideline show mode
+     */
+    public void setGuideShowMode(ShowMode mode) {
+        mGuideShowMode = mode;
+        switch (mode) {
+            case SHOW_ALWAYS:
+                mShowGuide = true;
+                break;
+            case NOT_SHOW:
+            case SHOW_ON_TOUCH:
+                mShowGuide = false;
+                break;
+        }
+        invalidate();
+    }
+
+    /**
+     * 设置 handle 的显示模式
+     * (SHOW_ALWAYS/NOT_SHOW/SHOW_ON_TOUCH)
+     *
+     * @param mode handle show mode
+     */
+    public void setHandleShowMode(ShowMode mode) {
+        mHandleShowMode = mode;
+        switch (mode) {
+            case SHOW_ALWAYS:
+                mShowHandle = true;
+                break;
+            case NOT_SHOW:
+            case SHOW_ON_TOUCH:
+                mShowHandle = false;
+                break;
+        }
+        invalidate();
+    }
+
+    private int dip2px(Context context, float dipValue) {
+        final float scale = context.getResources().getDisplayMetrics().density;
+        return (int) (dipValue * scale + 0.5f);
+    }
+
+    private float constrain(float val, float min, float max, float defaultVal) {
+        if (val < min || val > max) return defaultVal;
+        return val;
     }
 
     @Override
@@ -221,172 +278,6 @@ public class FocusSurfaceView extends SurfaceView {
 
         mBoundaryWidth = viewWidth - getPaddingLeft() - getPaddingRight();
         mBoundaryHeight = viewHeight - getPaddingTop() - getPaddingBottom();
-    }
-
-    @Override
-    protected void onLayout(boolean changed, int l, int t, int r, int b) {
-        setupLayout();
-    }
-
-    /**
-     * 计算裁剪框的位置和活动区域
-     */
-    private void setupLayout() {
-        if (mBoundaryWidth == 0 || mBoundaryHeight == 0) {
-            return;
-        }
-        mBoundaryRect = new RectF(0f, 0f, mBoundaryWidth, mBoundaryHeight);
-        float left = (mBoundaryWidth - mCropWidth) / 2;
-        float top = (mBoundaryHeight - mCropHeight) / 2;
-        float right = left + mCropWidth;
-        float bottom = top + mCropHeight;
-        if (mFrameRect == null) {
-            mFrameRect = new RectF(left, top, right, bottom);
-            mIsInitialized = true;
-        }
-    }
-
-    @Override
-    public void onDraw(Canvas canvas) {
-        if (mIsInitialized) {
-            if (mFrameBackground != null) {
-                canvas.save();
-                canvas.translate(getWidth() / 2, getHeight() / 2);
-                mFrameBackground.setBounds(-mCropWidth / 2, -mCropHeight / 2, mCropWidth / 2, mCropHeight / 2);
-                mFrameBackground.draw(canvas);
-                canvas.restore();
-            }
-            drawCropFrame(canvas);
-        }
-    }
-
-    /**
-     * 画裁剪框
-     *
-     * @param canvas
-     */
-    private void drawCropFrame(Canvas canvas) {
-        if (!mIsCropEnabled) return;
-        if (mIsRotating) return;
-        drawOverlay(canvas);
-        drawFrame(canvas);
-        if (mShowGuide) drawGuidelines(canvas);
-        if (mShowHandle) drawHandles(canvas);
-        drawTopTips(canvas);
-        drawBottomTips(canvas);
-    }
-
-    /**
-     * 画灰色的背景
-     *
-     * @param canvas
-     */
-    private void drawOverlay(Canvas canvas) {
-        mPaintTranslucent.setAntiAlias(true);
-        mPaintTranslucent.setFilterBitmap(true);
-        mPaintTranslucent.setColor(mOverlayColor);
-        mPaintTranslucent.setStyle(Paint.Style.FILL);
-        Path path = new Path();
-        if (!mIsAnimating
-                && (mCropMode == CropMode.CIRCLE || mCropMode == CropMode.CIRCLE_SQUARE)) {
-            path.addRect(mBoundaryRect, Path.Direction.CW);
-            PointF circleCenter = new PointF((mFrameRect.left + mFrameRect.right) / 2,
-                    (mFrameRect.top + mFrameRect.bottom) / 2);
-            float circleRadius = (mFrameRect.right - mFrameRect.left) / 2;
-            path.addCircle(circleCenter.x, circleCenter.y, circleRadius, Path.Direction.CCW);
-            canvas.drawPath(path, mPaintTranslucent);
-        } else {
-            path.addRect(mBoundaryRect, Path.Direction.CW);
-            path.addRect(mFrameRect, Path.Direction.CCW);
-            canvas.drawPath(path, mPaintTranslucent);
-        }
-    }
-
-    /**
-     * 画裁剪框的的四条边
-     *
-     * @param canvas
-     */
-    private void drawFrame(Canvas canvas) {
-        mPaintFrame.setAntiAlias(true);
-        mPaintFrame.setFilterBitmap(true);
-        mPaintFrame.setStyle(Paint.Style.STROKE);
-        mPaintFrame.setColor(mFrameColor);
-        mPaintFrame.setStrokeWidth(mFrameStrokeWeight);
-        canvas.drawRect(mFrameRect, mPaintFrame);
-    }
-
-    /**
-     * 画裁剪框里的横竖线
-     */
-    private void drawGuidelines(Canvas canvas) {
-        mPaintFrame.setColor(mGuideColor);
-        mPaintFrame.setStrokeWidth(mGuideStrokeWeight);
-        float h1 = mFrameRect.left + (mFrameRect.right - mFrameRect.left) / 3.0f;
-        float h2 = mFrameRect.right - (mFrameRect.right - mFrameRect.left) / 3.0f;
-        float v1 = mFrameRect.top + (mFrameRect.bottom - mFrameRect.top) / 3.0f;
-        float v2 = mFrameRect.bottom - (mFrameRect.bottom - mFrameRect.top) / 3.0f;
-        canvas.drawLine(h1, mFrameRect.top, h1, mFrameRect.bottom, mPaintFrame);
-        canvas.drawLine(h2, mFrameRect.top, h2, mFrameRect.bottom, mPaintFrame);
-        canvas.drawLine(mFrameRect.left, v1, mFrameRect.right, v1, mPaintFrame);
-        canvas.drawLine(mFrameRect.left, v2, mFrameRect.right, v2, mPaintFrame);
-    }
-
-    /**
-     * 画裁剪框四个角上的圆点
-     */
-    private void drawHandles(Canvas canvas) {
-        if (mIsHandleShadowEnabled) drawHandleShadows(canvas);
-        mPaintFrame.setStyle(Paint.Style.FILL);
-        mPaintFrame.setColor(mHandleColor);
-        canvas.drawCircle(mFrameRect.left, mFrameRect.top, mHandleSize, mPaintFrame);
-        canvas.drawCircle(mFrameRect.right, mFrameRect.top, mHandleSize, mPaintFrame);
-        canvas.drawCircle(mFrameRect.left, mFrameRect.bottom, mHandleSize, mPaintFrame);
-        canvas.drawCircle(mFrameRect.right, mFrameRect.bottom, mHandleSize, mPaintFrame);
-    }
-
-    /**
-     * 画裁剪框四个角上的圆点的阴影
-     */
-    private void drawHandleShadows(Canvas canvas) {
-        mPaintFrame.setStyle(Paint.Style.FILL);
-        mPaintFrame.setColor(TRANSLUCENT_BLACK);
-        RectF rect = new RectF(mFrameRect);
-        rect.offset(0, 1);
-        canvas.drawCircle(rect.left, rect.top, mHandleSize, mPaintFrame);
-        canvas.drawCircle(rect.right, rect.top, mHandleSize, mPaintFrame);
-        canvas.drawCircle(rect.left, rect.bottom, mHandleSize, mPaintFrame);
-        canvas.drawCircle(rect.right, rect.bottom, mHandleSize, mPaintFrame);
-    }
-
-    /**绘制顶部提示语**/
-    private void drawTopTips(Canvas canvas){
-        mPaintTips.setAntiAlias(true);
-        mPaintTips.setFilterBitmap(true);
-        mPaintTips.setStyle(Paint.Style.STROKE);
-        mPaintTips.setColor(mTopTipColor);
-        mPaintTips.setTextSize(mTopTipTextSize);
-        float x = mFrameRect.centerX()-measureText(mTopTipText)/2;
-        float y = mFrameRect.top -mTopTipMargin;
-        canvas.drawText(mTopTipText,x,y,mPaintTips);
-    }
-
-    /**绘制底部提示语**/
-    private void drawBottomTips(Canvas canvas){
-        mPaintTips.setAntiAlias(true);
-        mPaintTips.setFilterBitmap(true);
-        mPaintTips.setStyle(Paint.Style.STROKE);
-        mPaintTips.setColor(mBottomTipColor);
-        mPaintTips.setTextSize(mBottomTipTextSize);
-        float x = mFrameRect.centerX()-measureText(mBottomTipText)/2;
-        float y = mFrameRect.bottom + mBottomTipMargin;
-        canvas.drawText(mBottomTipText,x,y,mPaintTips);
-    }
-
-    /**测量文本宽度**/
-    private float measureText(String text) {
-       float mStringWidth = mPaintTips.measureText(text);
-        return mStringWidth;
     }
 
     /**
@@ -423,37 +314,6 @@ public class FocusSurfaceView extends SurfaceView {
         float sh = h * mInitialFrameScale;
         return new RectF(cx - sw / 2, cy - sh / 2, cx + sw / 2, cy + sh / 2);
     }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        if (!mIsChangeEnabled) return false;
-        if (!mIsInitialized) return false;
-        if (!mIsCropEnabled) return false;
-        if (!mIsEnabled) return false;
-        if (mIsRotating) return false;
-        if (mIsAnimating) return false;
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                onDown(event);
-                return true;
-            case MotionEvent.ACTION_MOVE:
-                onMove(event);
-                if (mTouchArea != TouchArea.OUT_OF_BOUNDS) {
-                    getParent().requestDisallowInterceptTouchEvent(true);
-                }
-                return true;
-            case MotionEvent.ACTION_CANCEL:
-                getParent().requestDisallowInterceptTouchEvent(false);
-                onCancel();
-                return true;
-            case MotionEvent.ACTION_UP:
-                getParent().requestDisallowInterceptTouchEvent(false);
-                onUp(event);
-                return true;
-        }
-        return false;
-    }
-
 
     private void onDown(MotionEvent e) {
         invalidate();
@@ -576,14 +436,6 @@ public class FocusSurfaceView extends SurfaceView {
         float dy = y - mFrameRect.bottom;
         float d = dx * dx + dy * dy;
         return sq(mHandleSize + mTouchPadding) >= d;
-    }
-
-    private void moveFrame(float x, float y) {
-        mFrameRect.left += x;
-        mFrameRect.right += x;
-        mFrameRect.top += y;
-        mFrameRect.bottom += y;
-        checkMoveBounds();
     }
 
     @SuppressWarnings("UnnecessaryLocalVariable")
@@ -794,29 +646,6 @@ public class FocusSurfaceView extends SurfaceView {
         }
     }
 
-    private void checkMoveBounds() {
-        float diff = mFrameRect.left - mBoundaryRect.left;
-        if (diff < 0) {
-            mFrameRect.left -= diff;
-            mFrameRect.right -= diff;
-        }
-        diff = mFrameRect.right - mBoundaryRect.right;
-        if (diff > 0) {
-            mFrameRect.left -= diff;
-            mFrameRect.right -= diff;
-        }
-        diff = mFrameRect.top - mBoundaryRect.top;
-        if (diff < 0) {
-            mFrameRect.top -= diff;
-            mFrameRect.bottom -= diff;
-        }
-        diff = mFrameRect.bottom - mBoundaryRect.bottom;
-        if (diff > 0) {
-            mFrameRect.top -= diff;
-            mFrameRect.bottom -= diff;
-        }
-    }
-
     private boolean isInsideHorizontal(float x) {
         return mBoundaryRect.left <= x && mBoundaryRect.right >= x;
     }
@@ -971,20 +800,8 @@ public class FocusSurfaceView extends SurfaceView {
         }
     }
 
-    private float getDensity() {
-        DisplayMetrics displayMetrics = new DisplayMetrics();
-        ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay()
-                .getMetrics(displayMetrics);
-        return displayMetrics.density;
-    }
-
     private float sq(float value) {
         return value * value;
-    }
-
-    private float constrain(float val, float min, float max, float defaultVal) {
-        if (val < min || val > max) return defaultVal;
-        return val;
     }
 
     private SimpleValueAnimator getAnimator() {
@@ -1119,46 +936,6 @@ public class FocusSurfaceView extends SurfaceView {
     }
 
     /**
-     * 设置 guideline 的显示模式
-     * (SHOW_ALWAYS/NOT_SHOW/SHOW_ON_TOUCH)
-     *
-     * @param mode guideline show mode
-     */
-    public void setGuideShowMode(ShowMode mode) {
-        mGuideShowMode = mode;
-        switch (mode) {
-            case SHOW_ALWAYS:
-                mShowGuide = true;
-                break;
-            case NOT_SHOW:
-            case SHOW_ON_TOUCH:
-                mShowGuide = false;
-                break;
-        }
-        invalidate();
-    }
-
-    /**
-     * 设置 handle 的显示模式
-     * (SHOW_ALWAYS/NOT_SHOW/SHOW_ON_TOUCH)
-     *
-     * @param mode handle show mode
-     */
-    public void setHandleShowMode(ShowMode mode) {
-        mHandleShowMode = mode;
-        switch (mode) {
-            case SHOW_ALWAYS:
-                mShowHandle = true;
-                break;
-            case NOT_SHOW:
-            case SHOW_ON_TOUCH:
-                mShowHandle = false;
-                break;
-        }
-        invalidate();
-    }
-
-    /**
      * 设置裁剪框的宽
      */
     public void setFrameStrokeWeightInDp(int weightDp) {
@@ -1195,6 +972,208 @@ public class FocusSurfaceView extends SurfaceView {
         mIsEnabled = enabled;
     }
 
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (!mIsChangeEnabled) return false;
+        if (!mIsInitialized) return false;
+        if (!mIsCropEnabled) return false;
+        if (!mIsEnabled) return false;
+        if (mIsRotating) return false;
+        if (mIsAnimating) return false;
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                onDown(event);
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                onMove(event);
+                if (mTouchArea != TouchArea.OUT_OF_BOUNDS) {
+                    getParent().requestDisallowInterceptTouchEvent(true);
+                }
+                return true;
+            case MotionEvent.ACTION_CANCEL:
+                getParent().requestDisallowInterceptTouchEvent(false);
+                onCancel();
+                return true;
+            case MotionEvent.ACTION_UP:
+                getParent().requestDisallowInterceptTouchEvent(false);
+                onUp(event);
+                return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void onDraw(Canvas canvas) {
+        if (mIsInitialized) {
+            if (mFrameBackground != null) {
+                canvas.save();
+                canvas.translate(getWidth() / 2, getHeight() / 2);
+                mFrameBackground.setBounds(-mCropWidth / 2, -mCropHeight / 2, mCropWidth / 2, mCropHeight / 2);
+                mFrameBackground.draw(canvas);
+                canvas.restore();
+            }
+            drawCropFrame(canvas);
+        }
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int l, int t, int r, int b) {
+        setupLayout();
+    }
+
+    /**
+     * 计算裁剪框的位置和活动区域
+     */
+    private void setupLayout() {
+        if (mBoundaryWidth == 0 || mBoundaryHeight == 0) {
+            return;
+        }
+        mBoundaryRect = new RectF(0f, 0f, mBoundaryWidth, mBoundaryHeight);
+        float left = (mBoundaryWidth - mCropWidth) / 2;
+        float top = (mBoundaryHeight - mCropHeight) / 2 - mTopMoveDistance;
+        float right = left + mCropWidth;
+        float bottom = top + mCropHeight;
+        if (mFrameRect == null) {
+            mFrameRect = new RectF(left, top, right, bottom);
+            mIsInitialized = true;
+        }
+    }
+
+    /**
+     * 画裁剪框
+     *
+     * @param canvas
+     */
+    private void drawCropFrame(Canvas canvas) {
+        if (!mIsCropEnabled) return;
+        if (mIsRotating) return;
+        drawOverlay(canvas);
+        drawFrame(canvas);
+        if (mShowGuide) drawGuidelines(canvas);
+        if (mShowHandle) drawHandles(canvas);
+        drawTopTips(canvas);
+        drawBottomTips(canvas);
+    }
+
+    /**
+     * 画灰色的背景
+     *
+     * @param canvas
+     */
+    private void drawOverlay(Canvas canvas) {
+        mPaintTranslucent.setAntiAlias(true);
+        mPaintTranslucent.setFilterBitmap(true);
+        mPaintTranslucent.setColor(mOverlayColor);
+        mPaintTranslucent.setStyle(Paint.Style.FILL);
+        Path path = new Path();
+        if (!mIsAnimating
+                && (mCropMode == CropMode.CIRCLE || mCropMode == CropMode.CIRCLE_SQUARE)) {
+            path.addRect(mBoundaryRect, Path.Direction.CW);
+            PointF circleCenter = new PointF((mFrameRect.left + mFrameRect.right) / 2,
+                    (mFrameRect.top + mFrameRect.bottom) / 2);
+            float circleRadius = (mFrameRect.right - mFrameRect.left) / 2;
+            path.addCircle(circleCenter.x, circleCenter.y, circleRadius, Path.Direction.CCW);
+            canvas.drawPath(path, mPaintTranslucent);
+        } else {
+            path.addRect(mBoundaryRect, Path.Direction.CW);
+            path.addRect(mFrameRect, Path.Direction.CCW);
+            canvas.drawPath(path, mPaintTranslucent);
+        }
+    }
+
+    /**
+     * 画裁剪框的的四条边
+     *
+     * @param canvas
+     */
+    private void drawFrame(Canvas canvas) {
+        mPaintFrame.setAntiAlias(true);
+        mPaintFrame.setFilterBitmap(true);
+        mPaintFrame.setStyle(Paint.Style.STROKE);
+        mPaintFrame.setColor(mFrameColor);
+        mPaintFrame.setStrokeWidth(mFrameStrokeWeight);
+        canvas.drawRect(mFrameRect, mPaintFrame);
+    }
+
+    /**
+     * 画裁剪框里的横竖线
+     */
+    private void drawGuidelines(Canvas canvas) {
+        mPaintFrame.setColor(mGuideColor);
+        mPaintFrame.setStrokeWidth(mGuideStrokeWeight);
+        float h1 = mFrameRect.left + (mFrameRect.right - mFrameRect.left) / 3.0f;
+        float h2 = mFrameRect.right - (mFrameRect.right - mFrameRect.left) / 3.0f;
+        float v1 = mFrameRect.top + (mFrameRect.bottom - mFrameRect.top) / 3.0f;
+        float v2 = mFrameRect.bottom - (mFrameRect.bottom - mFrameRect.top) / 3.0f;
+        canvas.drawLine(h1, mFrameRect.top, h1, mFrameRect.bottom, mPaintFrame);
+        canvas.drawLine(h2, mFrameRect.top, h2, mFrameRect.bottom, mPaintFrame);
+        canvas.drawLine(mFrameRect.left, v1, mFrameRect.right, v1, mPaintFrame);
+        canvas.drawLine(mFrameRect.left, v2, mFrameRect.right, v2, mPaintFrame);
+    }
+
+    /**
+     * 画裁剪框四个角上的圆点
+     */
+    private void drawHandles(Canvas canvas) {
+        if (mIsHandleShadowEnabled) drawHandleShadows(canvas);
+        mPaintFrame.setStyle(Paint.Style.FILL);
+        mPaintFrame.setColor(mHandleColor);
+        canvas.drawCircle(mFrameRect.left, mFrameRect.top, mHandleSize, mPaintFrame);
+        canvas.drawCircle(mFrameRect.right, mFrameRect.top, mHandleSize, mPaintFrame);
+        canvas.drawCircle(mFrameRect.left, mFrameRect.bottom, mHandleSize, mPaintFrame);
+        canvas.drawCircle(mFrameRect.right, mFrameRect.bottom, mHandleSize, mPaintFrame);
+    }
+
+    /**
+     * 绘制顶部提示语
+     **/
+    private void drawTopTips(Canvas canvas) {
+        mPaintTips.setAntiAlias(true);
+        mPaintTips.setFilterBitmap(true);
+        mPaintTips.setStyle(Paint.Style.STROKE);
+        mPaintTips.setColor(mTopTipColor);
+        mPaintTips.setTextSize(mTopTipTextSize);
+        float x = mFrameRect.centerX() - measureText(mTopTipText) / 2;
+        float y = mFrameRect.top - mTopTipMargin;
+        canvas.drawText(mTopTipText, x, y, mPaintTips);
+    }
+
+    /**
+     * 绘制底部提示语
+     **/
+    private void drawBottomTips(Canvas canvas) {
+        mPaintTips.setAntiAlias(true);
+        mPaintTips.setFilterBitmap(true);
+        mPaintTips.setStyle(Paint.Style.STROKE);
+        mPaintTips.setColor(mBottomTipColor);
+        mPaintTips.setTextSize(mBottomTipTextSize);
+        float x = mFrameRect.centerX() - measureText(mBottomTipText) / 2;
+        float y = mFrameRect.bottom + mBottomTipMargin;
+        canvas.drawText(mBottomTipText, x, y, mPaintTips);
+    }
+
+    /**
+     * 画裁剪框四个角上的圆点的阴影
+     */
+    private void drawHandleShadows(Canvas canvas) {
+        mPaintFrame.setStyle(Paint.Style.FILL);
+        mPaintFrame.setColor(TRANSLUCENT_BLACK);
+        RectF rect = new RectF(mFrameRect);
+        rect.offset(0, 1);
+        canvas.drawCircle(rect.left, rect.top, mHandleSize, mPaintFrame);
+        canvas.drawCircle(rect.right, rect.top, mHandleSize, mPaintFrame);
+        canvas.drawCircle(rect.left, rect.bottom, mHandleSize, mPaintFrame);
+        canvas.drawCircle(rect.right, rect.bottom, mHandleSize, mPaintFrame);
+    }
+
+    /**
+     * 测量文本宽度
+     **/
+    private float measureText(String text) {
+        float mStringWidth = mPaintTips.measureText(text);
+        return mStringWidth;
+    }
+
     /**
      * Set initial scale of the frame.(0.01 ~ 1.0)
      *
@@ -1223,6 +1202,162 @@ public class FocusSurfaceView extends SurfaceView {
      */
     private float getFrameHeight() {
         return (mFrameRect.bottom - mFrameRect.top);
+    }
+
+    /**
+     * 利用正确视角（和预览视角相同）的裁剪图片
+     **/
+    public Bitmap getCropPicture(Bitmap bitmap) {
+
+        //原始照片的宽高
+        float picWidth = bitmap.getWidth();
+        float picHeight = bitmap.getHeight();
+
+        //预览界面的宽高
+        float preWidth = getWidth();
+        float preHeight = getHeight();
+
+        //预览界面和照片的比例
+        float preRW = picWidth / preWidth;
+        float preRH = picHeight / preHeight;
+
+        //裁剪框的位置和宽高
+        RectF frameRect = getFrameRect();
+        float frameLeft = frameRect.left;
+        float frameTop = frameRect.top;
+        float frameWidth = frameRect.width();
+        float frameHeight = frameRect.height();
+
+        int cropLeft = (int) (frameLeft * preRW);
+        int cropTop = (int) (frameTop * preRH);
+        int cropWidth = (int) (frameWidth * preRW);
+        int cropHeight = (int) (frameHeight * preRH);
+
+        Bitmap cropBitmap = Bitmap.createBitmap(bitmap, cropLeft, cropTop, cropWidth, cropHeight);
+
+        if (mCropMode == CropMode.CIRCLE) {
+            cropBitmap = getCircularBitmap(cropBitmap);
+        }
+        return cropBitmap;
+    }
+
+    /**
+     * 获取裁剪框
+     */
+    public RectF getFrameRect() {
+        return mFrameRect;
+    }
+
+    /**
+     * 获取圆形图片
+     */
+    public Bitmap getCircularBitmap(Bitmap square) {
+        if (square == null) return null;
+        Bitmap output = Bitmap.createBitmap(square.getWidth(), square.getHeight(), Bitmap.Config.ARGB_8888);
+
+        final Rect rect = new Rect(0, 0, square.getWidth(), square.getHeight());
+        Canvas canvas = new Canvas(output);
+
+        int halfWidth = square.getWidth() / 2;
+        int halfHeight = square.getHeight() / 2;
+
+        final Paint paint = new Paint();
+        paint.setAntiAlias(true);
+        paint.setFilterBitmap(true);
+
+        canvas.drawCircle(halfWidth, halfHeight, Math.min(halfWidth, halfHeight), paint);
+        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+        canvas.drawBitmap(square, rect, rect, paint);
+        return output;
+    }
+
+    /**
+     * 设置顶部文字内容
+     **/
+    public void setTopTipText(String text) {
+
+        mTopTipText = text;
+        invalidate();
+    }
+
+    /**
+     * 设置底部文字内容
+     **/
+    public void setBottomTipText(String text) {
+
+        mBottomTipText = text;
+        invalidate();
+    }
+
+    /**
+     * 设置顶部文字颜色
+     **/
+    public void setTopTipTextColor(int color) {
+        mTopTipColor = color;
+        invalidate();
+    }
+
+    /**
+     * 设置顶部文字大小
+     **/
+    public void setTopTipTextSize(int size) {
+        mTopTipTextSize = size;
+        invalidate();
+    }
+
+    /**
+     * 设置裁剪框大小
+     **/
+    public void setCropWidth(int width) {
+        mCropWidth = width;
+        invalidate();
+    }
+
+    /**
+     * 设置裁剪框大小
+     **/
+    public void setCropHeight(int height) {
+        mCropHeight = height;
+        invalidate();
+    }
+
+    /**
+     * 初始化时设置裁剪框相对中间位置平移位置
+     **/
+    public void moveFrameRelateCenterPosition(float x, float y) {
+        moveFrame(x, y);
+        invalidate();
+    }
+
+    private void moveFrame(float x, float y) {
+        mFrameRect.left += x;
+        mFrameRect.right += x;
+        mFrameRect.top += y;
+        mFrameRect.bottom += y;
+        checkMoveBounds();
+    }
+
+    private void checkMoveBounds() {
+        float diff = mFrameRect.left - mBoundaryRect.left;
+        if (diff < 0) {
+            mFrameRect.left -= diff;
+            mFrameRect.right -= diff;
+        }
+        diff = mFrameRect.right - mBoundaryRect.right;
+        if (diff > 0) {
+            mFrameRect.left -= diff;
+            mFrameRect.right -= diff;
+        }
+        diff = mFrameRect.top - mBoundaryRect.top;
+        if (diff < 0) {
+            mFrameRect.top -= diff;
+            mFrameRect.bottom -= diff;
+        }
+        diff = mFrameRect.bottom - mBoundaryRect.bottom;
+        if (diff > 0) {
+            mFrameRect.top -= diff;
+            mFrameRect.bottom -= diff;
+        }
     }
 
     /**
@@ -1263,125 +1398,5 @@ public class FocusSurfaceView extends SurfaceView {
         public int getId() {
             return ID;
         }
-    }
-
-    /**
-     * 获取裁剪框
-     */
-    public RectF getFrameRect() {
-        return mFrameRect;
-    }
-    /**
-     * 利用正确视角（和预览视角相同）的裁剪图片
-     * **/
-    public Bitmap getCropPicture(Bitmap bitmap){
-
-        //原始照片的宽高
-        float picWidth = bitmap.getWidth();
-        float picHeight = bitmap.getHeight();
-
-        //预览界面的宽高
-        float preWidth = getWidth();
-        float preHeight = getHeight();
-
-        //预览界面和照片的比例
-        float preRW = picWidth / preWidth;
-        float preRH = picHeight / preHeight;
-
-        //裁剪框的位置和宽高
-        RectF frameRect = getFrameRect();
-        float frameLeft = frameRect.left;
-        float frameTop = frameRect.top;
-        float frameWidth = frameRect.width();
-        float frameHeight = frameRect.height();
-
-        int cropLeft = (int) (frameLeft * preRW);
-        int cropTop = (int) (frameTop * preRH);
-        int cropWidth = (int) (frameWidth * preRW);
-        int cropHeight = (int) (frameHeight * preRH);
-
-        Bitmap cropBitmap = Bitmap.createBitmap(bitmap, cropLeft, cropTop, cropWidth, cropHeight);
-
-        if (mCropMode == CropMode.CIRCLE) {
-            cropBitmap = getCircularBitmap(cropBitmap);
-        }
-        return cropBitmap;
-    }
-
-    /**
-     * 获取圆形图片
-     */
-    public Bitmap getCircularBitmap(Bitmap square) {
-        if (square == null) return null;
-        Bitmap output = Bitmap.createBitmap(square.getWidth(), square.getHeight(), Bitmap.Config.ARGB_8888);
-
-        final Rect rect = new Rect(0, 0, square.getWidth(), square.getHeight());
-        Canvas canvas = new Canvas(output);
-
-        int halfWidth = square.getWidth() / 2;
-        int halfHeight = square.getHeight() / 2;
-
-        final Paint paint = new Paint();
-        paint.setAntiAlias(true);
-        paint.setFilterBitmap(true);
-
-        canvas.drawCircle(halfWidth, halfHeight, Math.min(halfWidth, halfHeight), paint);
-        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
-        canvas.drawBitmap(square, rect, rect, paint);
-        return output;
-    }
-
-    private int dip2px(Context context, float dipValue) {
-        final float scale = context.getResources().getDisplayMetrics().density;
-        return (int) (dipValue * scale + 0.5f);
-    }
-
-    /**
-     * 设置顶部文字内容
-     * **/
-    public void setTopTipText(String text){
-
-        mTopTipText = text;
-        invalidate();
-    }
-    /**
-     * 设置底部文字内容
-     * **/
-    public void setBottomTipText(String text){
-
-        mBottomTipText = text;
-        invalidate();
-    }
-    /**
-     * 设置顶部文字颜色
-     * **/
-    public void setTopTipTextColor(int color){
-        mTopTipColor = color;
-        invalidate();
-    }
-    /**
-     * 设置顶部文字大小
-     * **/
-    public void setTopTipTextSize(int size){
-        mTopTipTextSize = size;
-        invalidate();
-    }
-
-    /**设置裁剪框大小**/
-    public void setCropWidth(int width){
-        mCropWidth = width;
-        invalidate();
-    }
-    /**设置裁剪框大小**/
-    public void setCropHeight(int height){
-        mCropHeight = height;
-        invalidate();
-    }
-
-    /**
-     * 初始化时设置裁剪框相对中间位置平移位置
-     **/
-    public void moveFrameRelateCenterPosition(float x, float y) {
-        moveFrame(x, y);
     }
 }
